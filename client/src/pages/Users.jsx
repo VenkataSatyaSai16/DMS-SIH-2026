@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import api from '../services/api';
 import { usePermissions } from '../hooks/usePermissions';
-import { Users as UsersIcon, Plus, AlertCircle, Shield, X, Check, Ban } from 'lucide-react';
+import { Users as UsersIcon, Plus, AlertCircle, Shield, X, Check, Ban, Eye, EyeOff } from 'lucide-react';
 
 export const Users = () => {
   const [users, setUsers] = useState([]);
@@ -9,6 +9,7 @@ export const Users = () => {
   const [units, setUnits] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   // Modals
   const [activeModal, setActiveModal] = useState(null); // 'USER', 'ROLE'
@@ -49,7 +50,7 @@ export const Users = () => {
       setUnits(Array.isArray(unitsData) ? unitsData : []);
     } catch (err) {
       if (err.response?.status === 403) {
-        setError('Access Denied: You do not have authorization clearance (USER_VIEW / ROLE_VIEW) to access the user directory.');
+        setError('Access Denied: You do not have official authorization clearance to access the user directory.');
       } else if (err.response?.status === 401) {
         setError('Session Expired: Please log in again.');
       } else {
@@ -287,7 +288,36 @@ export const Users = () => {
 
                 <div className="input-group">
                   <label className="input-label">Initial Account Password *</label>
-                  <input type="password" className="input-field" placeholder="••••••••" value={userForm.password} onChange={(e) => setUserForm({ ...userForm, password: e.target.value })} required />
+                  <div style={{ position: 'relative' }}>
+                    <input 
+                      type={showPassword ? 'text' : 'password'} 
+                      className="input-field" 
+                      placeholder="••••••••" 
+                      value={userForm.password} 
+                      onChange={(e) => setUserForm({ ...userForm, password: e.target.value })} 
+                      required 
+                      style={{ paddingRight: '40px' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      style={{
+                        position: 'absolute',
+                        right: '10px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        color: 'var(--text-muted)',
+                        display: 'flex',
+                        alignItems: 'center'
+                      }}
+                      title={showPassword ? "Hide Password" : "Show Password"}
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>

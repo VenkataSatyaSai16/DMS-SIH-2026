@@ -1,43 +1,40 @@
-import { execa } from "execa";
-import { OCR_LANGUAGES } from "../config/ocr.js";
+import Tesseract from "tesseract.js";
 
+/**
+ * Extract text from an image buffer or file path using Tesseract.js
+ * @param {Object} params
+ * @param {string} [params.filePath] - Absolute path to image file
+ * @param {Buffer} [params.buffer] - Image file buffer
+ * @param {string} [params.language="eng"] - Language code for OCR
+ * @returns {Promise<string>} Extracted OCR text string
+ */
 export const extractTextFromImage = async ({
   filePath,
+  buffer,
   language = "eng",
 }) => {
-  if (!filePath) {
-    throw new Error("File path is required");
+  const source = buffer || filePath;
+  if (!source) {
+    throw new Error("File path or buffer is required for OCR extraction");
   }
 
-  const { stdout } = await execa("C:\\Program Files\\Tesseract-OCR\\tesseract.exe", [
-    filePath,
-    "stdout",
-    "-l",
-    language,
-  ]);
-
-  return stdout.trim();
+  try {
+    const { data } = await Tesseract.recognize(source, language);
+    return data && data.text ? data.text.trim() : "";
+  } catch (error) {
+    console.error("Tesseract.js OCR processing error:", error);
+    return "";
+  }
 };
 
+/**
+ * Extract multilingual text from an image buffer or file path
+ */
 export const extractMultilingualText = async ({
   filePath,
-  languages = Object.values(OCR_LANGUAGES),
+  buffer,
+  languages = ["eng"],
 }) => {
-  if (!filePath) {
-    throw new Error("File path is required");
-  }
-
-  const languageString = languages.join("+");
-
-  const { stdout } = await execa(
-    "C:\\Program Files\\Tesseract-OCR\\tesseract.exe",
-    [
-      filePath,
-      "stdout",
-      "-l",
-      languageString,
-    ]
-  );
-
-  return stdout.trim();
+  const languageString = Array.isArray(languages) ? languages.join("+") : languages;
+  return extractTextFromImage({ filePath, buffer, language: languageString });
 };

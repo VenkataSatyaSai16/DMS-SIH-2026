@@ -46,6 +46,11 @@ export const CaseDetails = () => {
 
   // Form states
   const [selectedFile, setSelectedFile] = useState(null);
+  const [uploadCategory, setUploadCategory] = useState('');
+  const [uploadDescription, setUploadDescription] = useState('');
+  const [evidenceSearchTerm, setEvidenceSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
+
   const [editForm, setEditForm] = useState({ title: '', description: '', status: 'ACTIVE', priority: 'NORMAL' });
   const [unitAssignForm, setUnitAssignForm] = useState({ unitId: '', accessLevel: 'READ' });
   const [userAssignForm, setUserAssignForm] = useState({ userId: '', accessLevel: 'READ' });
@@ -150,6 +155,8 @@ export const CaseDetails = () => {
     try {
       const formData = new FormData();
       formData.append('file', selectedFile);
+      if (uploadCategory) formData.append('category', uploadCategory);
+      if (uploadDescription) formData.append('description', uploadDescription);
 
       await api.post(`/cases/${id}/files`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
@@ -157,6 +164,8 @@ export const CaseDetails = () => {
 
       setActiveModal(null);
       setSelectedFile(null);
+      setUploadCategory('');
+      setUploadDescription('');
       fetchCaseDetails();
     } catch (err) {
       setModalError(err.response?.data?.message || 'File upload failed. Check supported file types and size.');
@@ -342,7 +351,7 @@ export const CaseDetails = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '6px', flexWrap: 'wrap' }}>
             <h1 style={{ margin: 0, fontSize: '1.6rem' }}>{caseData?.title}</h1>
             <span className="badge badge-info" style={{ fontFamily: 'monospace', fontSize: '0.85rem' }}>
-              {caseData?.caseId || `CASE-${id.substring(0,8).toUpperCase()}`}
+              {caseData?.caseId || 'OFFICIAL-CASE-FILE'}
             </span>
           </div>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', maxWidth: '850px', lineHeight: 1.5 }}>
@@ -451,27 +460,90 @@ export const CaseDetails = () => {
                 )}
               </div>
 
+              {/* OCR Text & Category Filter Control Bar */}
+              <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border-light)', background: '#f8fafc', display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+                <div style={{ flex: 1, minWidth: '240px', position: 'relative' }}>
+                  <input 
+                    type="text" 
+                    className="input-field" 
+                    placeholder="Search evidence by name, description, or OCR text..."
+                    value={evidenceSearchTerm}
+                    onChange={(e) => setEvidenceSearchTerm(e.target.value)}
+                    style={{ width: '100%', fontSize: '0.85rem', padding: '8px 12px' }}
+                  />
+                </div>
+
+                <div style={{ minWidth: '180px' }}>
+                  <select 
+                    className="input-field"
+                    value={selectedCategory}
+                    onChange={(e) => setSelectedCategory(e.target.value)}
+                    style={{ width: '100%', fontSize: '0.85rem', padding: '8px 12px' }}
+                  >
+                    <option value="">All Categories</option>
+                    <option value="DOCUMENT">DOCUMENT</option>
+                    <option value="PHOTOGRAPH">PHOTOGRAPH</option>
+                    <option value="VIDEO">VIDEO</option>
+                    <option value="AUDIO">AUDIO</option>
+                    <option value="CCTV">CCTV</option>
+                    <option value="FORENSIC">FORENSIC</option>
+                    <option value="REPORT">REPORT</option>
+                    <option value="OTHER">OTHER</option>
+                  </select>
+                </div>
+              </div>
+
               <div className="gov-card-body" style={{ padding: 0 }}>
-                {evidence.length === 0 ? (
+                {evidence.filter(file => {
+                  const matchesSearch = !evidenceSearchTerm || 
+                    file.originalName?.toLowerCase().includes(evidenceSearchTerm.toLowerCase()) ||
+                    file.displayName?.toLowerCase().includes(evidenceSearchTerm.toLowerCase()) ||
+                    file.description?.toLowerCase().includes(evidenceSearchTerm.toLowerCase()) ||
+                    file.ocrText?.toLowerCase().includes(evidenceSearchTerm.toLowerCase()) ||
+                    file.tags?.some(t => t.toLowerCase().includes(evidenceSearchTerm.toLowerCase()));
+                  const matchesCategory = !selectedCategory || file.category === selectedCategory;
+                  return matchesSearch && matchesCategory;
+                }).length === 0 ? (
                   <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-                    No digital evidence files registered for this case record.
+                    {evidence.length === 0 
+                      ? 'No digital evidence files registered for this case record.' 
+                      : 'No evidence files match your search filter or category selection.'}
                   </div>
                 ) : (
                   <div className="gov-table-container" style={{ border: 'none' }}>
                     <table className="gov-table">
                       <thead>
                         <tr>
-                          <th>File Name</th>
-                          <th>Format / Size</th>
+                          <th>File Name / Extracted Text</th>
+                          <th>Category / Format</th>
                           <th>Status</th>
                           <th style={{ textAlign: 'right' }}>Actions</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {evidence.map(file => (
+                        {evidence.filter(file => {
+                          const matchesSearch = !evidenceSearchTerm || 
+                            file.originalName?.toLowerCase().includes(evidenceSearchTerm.toLowerCase()) ||
+                            file.displayName?.toLowerCase().includes(evidenceSearchTerm.toLowerCase()) ||
+                            file.description?.toLowerCase().includes(evidenceSearchTerm.toLowerCase()) ||
+                            file.ocrText?.toLowerCase().includes(evidenceSearchTerm.toLowerCase()) ||
+                            file.tags?.some(t => t.toLowerCase().includes(evidenceSearchTerm.toLowerCase()));
+                          const matchesCategory = !selectedCategory || file.category === selectedCategory;
+                          return matchesSearch && matchesCategory;
+                        }).map(file => (
                           <tr key={file.id}>
                             <td>
                               <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{file.originalName}</div>
+                              {file.ocrText && (
+                                <div style={{ marginTop: '6px', fontSize: '0.8rem', background: '#f8fafc', padding: '8px 10px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                                  <div style={{ fontWeight: 600, color: 'var(--govt-navy)', fontSize: '0.75rem', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                    <FileText size={12} /> OCR Extracted Text:
+                                  </div>
+                                  <div style={{ fontFamily: 'monospace', whiteSpace: 'pre-wrap', maxHeight: '120px', overflowY: 'auto', color: 'var(--text-primary)', fontSize: '0.8rem', background: '#ffffff', padding: '6px', borderRadius: '3px', border: '1px solid var(--border-light)' }}>
+                                    {file.ocrText}
+                                  </div>
+                                </div>
+                              )}
                             </td>
                             <td>
                               <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
@@ -501,7 +573,7 @@ export const CaseDetails = () => {
                                     onClick={() => handleDownloadEvidence(file.id, file.originalName)}
                                     className="btn btn-secondary" 
                                     style={{ padding: '4px 8px', fontSize: '0.75rem' }}
-                                    title="Download Evidence via API /api/cases/:caseId/files/:fileId/download"
+                                    title="Download Evidence File"
                                   >
                                     <Download size={14} /> Download
                                   </button>
@@ -625,7 +697,7 @@ export const CaseDetails = () => {
                       <tbody>
                         {caseData.assignments.map(a => (
                           <tr key={a.id}>
-                            <td>{a.user?.name || a.userId}</td>
+                            <td>{a.user?.name || 'Assigned Officer'}</td>
                             <td><span className="badge badge-success">{a.status || 'ACTIVE'}</span></td>
                             <td style={{ fontSize: '0.8rem' }}>{a.assignedAt ? new Date(a.assignedAt).toLocaleDateString() : 'N/A'}</td>
                           </tr>
@@ -653,7 +725,7 @@ export const CaseDetails = () => {
               <div>
                 <div style={{ color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.75rem' }}>CASE REFERENCE ID</div>
                 <div style={{ fontWeight: 700, fontFamily: 'monospace', color: 'var(--govt-navy)', marginTop: '2px' }}>
-                  {caseData?.caseId || `CASE-${id.substring(0,8).toUpperCase()}`}
+                  {caseData?.caseId || 'OFFICIAL-CASE-FILE'}
                 </div>
               </div>
 
@@ -729,8 +801,37 @@ export const CaseDetails = () => {
                     required 
                   />
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                    Supported: PDF, JPEG, PNG, WEBP, MP4, WEBM, TXT (Max 50MB).
+                    Supported: PDF, JPEG, PNG, WEBP, MP4, WEBM, TXT (Max 50MB). Images auto-processed with OCR.
                   </div>
+                </div>
+
+                <div className="input-group">
+                  <label className="input-label">Evidence Category</label>
+                  <select 
+                    className="input-field"
+                    value={uploadCategory}
+                    onChange={(e) => setUploadCategory(e.target.value)}
+                  >
+                    <option value="">Choose Category...</option>
+                    <option value="DOCUMENT">DOCUMENT</option>
+                    <option value="PHOTOGRAPH">PHOTOGRAPH</option>
+                    <option value="VIDEO">VIDEO</option>
+                    <option value="AUDIO">AUDIO</option>
+                    <option value="CCTV">CCTV</option>
+                    <option value="FORENSIC">FORENSIC</option>
+                    <option value="REPORT">REPORT</option>
+                    <option value="OTHER">OTHER</option>
+                  </select>
+                </div>
+
+                <div className="input-group">
+                  <label className="input-label">Description / Summary</label>
+                  <textarea 
+                    className="input-field"
+                    placeholder="Enter evidence notes or description..."
+                    value={uploadDescription}
+                    onChange={(e) => setUploadDescription(e.target.value)}
+                  />
                 </div>
               </div>
               <div className="gov-modal-footer">

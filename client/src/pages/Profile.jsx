@@ -1,13 +1,22 @@
 import { useState, useEffect } from 'react';
 import api from '../services/api';
 import { useAuth } from '../hooks/useAuth';
-import { User, ShieldCheck, Building, Key, Lock, CheckCircle2 } from 'lucide-react';
+import { User, ShieldCheck, Building, Key, Lock, CheckCircle2, AlertCircle, Check, Eye, EyeOff } from 'lucide-react';
 
 export const Profile = () => {
   const { user: authUser } = useAuth();
   const [profileData, setProfileData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // Password Change State
+  const [pwdForm, setPwdForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [showCurrentPwd, setShowCurrentPwd] = useState(false);
+  const [showNewPwd, setShowNewPwd] = useState(false);
+  const [showConfirmPwd, setShowConfirmPwd] = useState(false);
+  const [pwdSubmitting, setPwdSubmitting] = useState(false);
+  const [pwdError, setPwdError] = useState('');
+  const [pwdSuccess, setPwdSuccess] = useState('');
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -23,6 +32,36 @@ export const Profile = () => {
 
     fetchProfile();
   }, []);
+
+  const handlePasswordChange = async (e) => {
+    e.preventDefault();
+    setPwdError('');
+    setPwdSuccess('');
+
+    if (pwdForm.newPassword !== pwdForm.confirmPassword) {
+      setPwdError('New password and confirmation password do not match.');
+      return;
+    }
+
+    if (pwdForm.newPassword.length < 6) {
+      setPwdError('New password must be at least 6 characters long.');
+      return;
+    }
+
+    setPwdSubmitting(true);
+    try {
+      const response = await api.post('/auth/change-password', {
+        currentPassword: pwdForm.currentPassword,
+        newPassword: pwdForm.newPassword
+      });
+      setPwdSuccess(response.data?.message || 'Password changed successfully!');
+      setPwdForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    } catch (err) {
+      setPwdError(err.response?.data?.message || 'Failed to update password. Verify current password.');
+    } finally {
+      setPwdSubmitting(false);
+    }
+  };
 
   const officer = profileData || authUser || {};
 
@@ -41,11 +80,11 @@ export const Profile = () => {
         <div>
           <h1 style={{ fontSize: '1.5rem', margin: 0 }}>Officer Credentials & Profile</h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: '4px' }}>
-            Verified identity details, assigned scope privileges, and active session permissions.
+            Verified identity details, assigned scope privileges, and security settings.
           </p>
         </div>
         <span className="badge badge-success" style={{ padding: '6px 12px', fontSize: '0.8rem' }}>
-          <CheckCircle2 size={14} style={{ marginRight: '6px' }} /> Verified Officer Credentials
+          <CheckCircle2 size={14} style={{ marginRight: '6px' }} /> Verified Officer Account
         </span>
       </div>
 
@@ -92,11 +131,18 @@ export const Profile = () => {
             </div>
 
             <div className="gov-card-body" style={{ borderTop: '1px solid var(--border-light)', padding: '16px 20px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '0.85rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '0.85rem' }}>
                 <div>
-                  <div style={{ color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.75rem' }}>OFFICER ID</div>
-                  <div style={{ fontFamily: 'monospace', fontWeight: 600, color: 'var(--govt-navy)', marginTop: '2px' }}>
-                    {officer.id || 'N/A'}
+                  <div style={{ color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.75rem' }}>OFFICER NAME</div>
+                  <div style={{ fontWeight: 600, color: 'var(--govt-navy)', marginTop: '2px' }}>
+                    {officer.name || 'Authorized Officer'}
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.75rem' }}>OFFICIAL EMAIL ADDRESS</div>
+                  <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginTop: '2px' }}>
+                    {officer.email || 'officer@gov.in'}
                   </div>
                 </div>
 
@@ -118,7 +164,7 @@ export const Profile = () => {
             </div>
           </div>
 
-          {/* Capabilities & Privileges */}
+          {/* Capabilities & Security Controls */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             
             <div className="gov-card">
@@ -135,38 +181,150 @@ export const Profile = () => {
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                   {officer.capabilities && officer.capabilities.length > 0 ? (
                     officer.capabilities.map((cap, i) => (
-                      <span key={i} className="badge badge-secondary" style={{ fontFamily: 'monospace', fontSize: '0.8rem', padding: '4px 10px' }}>
+                      <span key={i} className="badge badge-secondary" style={{ fontSize: '0.8rem', padding: '4px 10px' }}>
                         <ShieldCheck size={12} style={{ marginRight: '6px' }} /> {cap}
                       </span>
                     ))
                   ) : (
                     <>
-                      <span className="badge badge-secondary" style={{ fontFamily: 'monospace', fontSize: '0.8rem', padding: '4px 10px' }}>CASE_VIEW</span>
-                      <span className="badge badge-secondary" style={{ fontFamily: 'monospace', fontSize: '0.8rem', padding: '4px 10px' }}>EVIDENCE_VIEW</span>
-                      <span className="badge badge-secondary" style={{ fontFamily: 'monospace', fontSize: '0.8rem', padding: '4px 10px' }}>UNIT_VIEW</span>
+                      <span className="badge badge-secondary" style={{ fontSize: '0.8rem', padding: '4px 10px' }}><ShieldCheck size={12} style={{ marginRight: '6px' }} /> Case Clearance</span>
+                      <span className="badge badge-secondary" style={{ fontSize: '0.8rem', padding: '4px 10px' }}><ShieldCheck size={12} style={{ marginRight: '6px' }} /> Digital Evidence Access</span>
+                      <span className="badge badge-secondary" style={{ fontSize: '0.8rem', padding: '4px 10px' }}><ShieldCheck size={12} style={{ marginRight: '6px' }} /> Department Unit Authorization</span>
                     </>
                   )}
                 </div>
               </div>
             </div>
 
+            {/* Change Password Card */}
             <div className="gov-card">
               <div className="gov-card-header">
                 <div className="gov-card-title">
-                  <Lock size={18} /> Official Session Status
+                  <Lock size={18} /> Update Security Password
                 </div>
               </div>
-              <div className="gov-card-body" style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                  <div style={{ padding: '12px', background: '#f8fafc', border: '1px solid var(--border-light)', borderRadius: '4px' }}>
-                    <div style={{ fontWeight: 600, color: 'var(--govt-navy)', marginBottom: '4px' }}>Session Status</div>
-                    <div>Active & Signed in</div>
+
+              <div className="gov-card-body">
+                {pwdError && (
+                  <div style={{ 
+                    background: 'var(--danger-bg)', 
+                    border: '1px solid var(--danger-border)',
+                    color: 'var(--danger-text)',
+                    padding: '10px 14px',
+                    borderRadius: '4px',
+                    marginBottom: '16px',
+                    fontSize: '0.85rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    <AlertCircle size={16} />
+                    {pwdError}
                   </div>
-                  <div style={{ padding: '12px', background: '#f8fafc', border: '1px solid var(--border-light)', borderRadius: '4px' }}>
-                    <div style={{ fontWeight: 600, color: 'var(--govt-navy)', marginBottom: '4px' }}>Audit Logging</div>
-                    <div>All officer actions logged under Officer ID</div>
+                )}
+
+                {pwdSuccess && (
+                  <div style={{ 
+                    background: '#f0fdf4', 
+                    border: '1px solid #bbf7d0',
+                    color: '#15803d',
+                    padding: '10px 14px',
+                    borderRadius: '4px',
+                    marginBottom: '16px',
+                    fontSize: '0.85rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    <CheckCircle2 size={16} />
+                    {pwdSuccess}
                   </div>
-                </div>
+                )}
+
+                <form onSubmit={handlePasswordChange}>
+                  <div className="input-group">
+                    <label className="input-label" htmlFor="currentPassword">Current Password *</label>
+                    <div style={{ position: 'relative' }}>
+                      <input 
+                        id="currentPassword"
+                        type={showCurrentPwd ? 'text' : 'password'} 
+                        className="input-field" 
+                        placeholder="Enter current password..."
+                        value={pwdForm.currentPassword}
+                        onChange={(e) => setPwdForm({ ...pwdForm, currentPassword: e.target.value })}
+                        required 
+                        style={{ paddingRight: '40px' }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowCurrentPwd(!showCurrentPwd)}
+                        style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }}
+                        title={showCurrentPwd ? "Hide Password" : "Show Password"}
+                      >
+                        {showCurrentPwd ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                    <div className="input-group">
+                      <label className="input-label" htmlFor="newPassword">New Password *</label>
+                      <div style={{ position: 'relative' }}>
+                        <input 
+                          id="newPassword"
+                          type={showNewPwd ? 'text' : 'password'} 
+                          className="input-field" 
+                          placeholder="Min 6 characters..."
+                          value={pwdForm.newPassword}
+                          onChange={(e) => setPwdForm({ ...pwdForm, newPassword: e.target.value })}
+                          required 
+                          style={{ paddingRight: '40px' }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowNewPwd(!showNewPwd)}
+                          style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }}
+                          title={showNewPwd ? "Hide Password" : "Show Password"}
+                        >
+                          {showNewPwd ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="input-group">
+                      <label className="input-label" htmlFor="confirmPassword">Confirm New Password *</label>
+                      <div style={{ position: 'relative' }}>
+                        <input 
+                          id="confirmPassword"
+                          type={showConfirmPwd ? 'text' : 'password'} 
+                          className="input-field" 
+                          placeholder="Re-enter new password..."
+                          value={pwdForm.confirmPassword}
+                          onChange={(e) => setPwdForm({ ...pwdForm, confirmPassword: e.target.value })}
+                          required 
+                          style={{ paddingRight: '40px' }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPwd(!showConfirmPwd)}
+                          style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }}
+                          title={showConfirmPwd ? "Hide Password" : "Show Password"}
+                        >
+                          {showConfirmPwd ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <button 
+                    type="submit" 
+                    className="btn btn-primary" 
+                    style={{ marginTop: '8px' }}
+                    disabled={pwdSubmitting}
+                  >
+                    {pwdSubmitting ? 'Updating Password...' : <><Check size={16} /> Update Password</>}
+                  </button>
+                </form>
               </div>
             </div>
 

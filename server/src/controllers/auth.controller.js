@@ -1,4 +1,4 @@
-import { loginUser } from "../services/auth.service.js";
+import { loginUser, changePassword } from "../services/auth.service.js";
 
 export const login = async (req,res) =>{
     try{
@@ -29,4 +29,19 @@ export const login = async (req,res) =>{
             }
         );
     }
-}
+};
+
+export const changePasswordController = async (req, res, next) => {
+    try {
+        const userId = req.user.sub || req.user.id;
+        const result = await changePassword(userId, req.body);
+        return res.status(200).json({
+            message: result.message,
+        });
+    } catch (error) {
+        if (error.statusCode) {
+            return res.status(error.statusCode).json({ message: error.message });
+        }
+        next(error);
+    }
+};

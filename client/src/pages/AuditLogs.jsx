@@ -15,11 +15,11 @@ export const AuditLogs = () => {
       setLogs(response.data.data || response.data || []);
     } catch (err) {
       if (err.response?.status === 403) {
-        setError('Access Denied: You do not have authorization clearance (AUDIT_VIEW) to view zero-trust audit trail logs.');
+        setError('Access Denied: You do not have official authorization clearance to view security audit logs.');
       } else if (err.response?.status === 401) {
         setError('Session Expired: Please log in again.');
       } else {
-        setError(err.response?.data?.message || 'Failed to fetch zero-trust audit trail logs. Verify auditor credentials.');
+        setError(err.response?.data?.message || 'Failed to fetch zero-trust audit trail logs.');
       }
     } finally {
       setLoading(false);
@@ -38,12 +38,14 @@ export const AuditLogs = () => {
         alignItems: 'center', 
         marginBottom: '24px',
         paddingBottom: '16px',
-        borderBottom: '2px solid var(--border-color)'
+        borderBottom: '2px solid var(--border-color)',
+        flexWrap: 'wrap',
+        gap: '12px'
       }}>
         <div>
           <h1 style={{ fontSize: '1.5rem', margin: 0 }}>Zero-Trust Audit Logs</h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: '4px' }}>
-            Immutable system activity log recording all user access, case file requests, and evidence downloads.
+            Official audit trail of administrative access decisions, permission evaluations, and system actions.
           </p>
         </div>
 
@@ -107,8 +109,8 @@ export const AuditLogs = () => {
                           {log.createdAt ? new Date(log.createdAt).toLocaleString() : 'N/A'}
                         </td>
                         <td>
-                          <div style={{ fontWeight: 600 }}>{log.user?.name || log.userId || 'System'}</div>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{log.user?.email}</div>
+                          <div style={{ fontWeight: 600 }}>{log.user?.name || 'Authorized Officer'}</div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{log.user?.email || 'Officer Account'}</div>
                         </td>
                         <td>
                           <span className="badge badge-info" style={{ fontFamily: 'monospace' }}>

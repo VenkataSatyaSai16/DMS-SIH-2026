@@ -9,15 +9,33 @@ import {
 import { EVIDENCE_CATEGORIES } from "../config/evidence.js";
 import { createIntegrityCommitment } from "../services/integrity-commitment.service.js";
 import { anchorEvidenceCommitment } from "../services/blockchain.service.js";
+import { extractTextFromImage } from "../services/ocr.service.js";
 
 export const getCaseFiles = async (req, res) => {
   try {
     const { caseId } = req.params;
+    const { search, category } = req.query;
+
+    const whereClause = {
+      caseId,
+    };
+
+    if (category) {
+      whereClause.category = category;
+    }
+
+    if (search) {
+      whereClause.OR = [
+        { originalName: { contains: search, mode: "insensitive" } },
+        { displayName: { contains: search, mode: "insensitive" } },
+        { description: { contains: search, mode: "insensitive" } },
+        { ocrText: { contains: search, mode: "insensitive" } },
+        { tags: { has: search.toLowerCase() } },
+      ];
+    }
 
     const caseFiles = await prisma.caseFile.findMany({
-      where: {
-        caseId,
-      },
+      where: whereClause,
       select: {
         id: true,
         caseId: true,
@@ -30,6 +48,8 @@ export const getCaseFiles = async (req, res) => {
         category: true,
         description: true,
         tags: true,
+        ocrLanguage: true,
+        ocrText: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -108,6 +128,24 @@ export const uploadCaseFile = async (req, res) => {
       fileId,
     });
 
+    // Perform OCR text extraction if file is an image
+    let extractedOcrText = null;
+    let ocrLanguage = null;
+
+    if (file.mimetype && (file.mimetype.startsWith("image/") || file.mimetype === "application/pdf")) {
+      try {
+        extractedOcrText = await extractTextFromImage({
+          buffer: file.buffer,
+          language: "eng",
+        });
+        if (extractedOcrText) {
+          ocrLanguage = "eng";
+        }
+      } catch (ocrErr) {
+        console.error("OCR extraction error:", ocrErr.message);
+      }
+    }
+
     try {
       const caseFile = await prisma.caseFile.create({
         data: {
@@ -123,6 +161,8 @@ export const uploadCaseFile = async (req, res) => {
           mimeType: file.mimetype,
           size: BigInt(file.size),
           sha256,
+          ocrLanguage,
+          ocrText: extractedOcrText || null,
           blockchainCommitment,
           blockchainStatus: "PENDING",
           blockchainNetwork: "hardhat-local",

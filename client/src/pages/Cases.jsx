@@ -41,7 +41,7 @@ export const Cases = () => {
       setUnits(Array.isArray(unitsData) ? unitsData : []);
     } catch (err) {
       if (err.response?.status === 403) {
-        setError('Access Denied: You do not have authorization clearance (CASE_VIEW) to access official case records.');
+        setError('Access Denied: You do not have official authorization clearance to access case records.');
       } else if (err.response?.status === 401) {
         setError('Session Expired: Please log in again.');
       } else {
@@ -195,7 +195,7 @@ export const Cases = () => {
                 <tr key={c.id}>
                   <td>
                     <div style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--govt-navy)' }}>
-                      {c.caseId || `CASE-${c.id.substring(0,8).toUpperCase()}`}
+                      {c.caseId || 'OFFICIAL-CASE-FILE'}
                     </div>
                   </td>
                   <td>
@@ -226,10 +226,10 @@ export const Cases = () => {
                   <td style={{ textAlign: 'right' }}>
                     <Link 
                       to={`/cases/${c.id}`} 
-                      className="btn btn-secondary" 
-                      style={{ padding: '4px 10px', fontSize: '0.8rem' }}
+                      className="btn" 
+                      style={{ padding: '6px 14px', fontSize: '0.8rem', backgroundColor: '#16a34a', color: '#ffffff', border: 'none', fontWeight: 600, borderRadius: '4px' }}
                     >
-                      <Eye size={14} /> Open File
+                      Open File
                     </Link>
                   </td>
                 </tr>

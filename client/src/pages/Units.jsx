@@ -30,7 +30,7 @@ export const Units = () => {
       setUnits(Array.isArray(unitsData) ? unitsData : []);
     } catch (err) {
       if (err.response?.status === 403) {
-        setError('Access Denied: You do not have authorization clearance (UNIT_VIEW) to access organization units.');
+        setError('Access Denied: You do not have official authorization clearance to access organization units.');
       } else if (err.response?.status === 401) {
         setError('Session Expired: Please log in again.');
       } else {
@@ -150,7 +150,7 @@ export const Units = () => {
                 <tr key={unit.id}>
                   <td>
                     <div style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--govt-navy)' }}>
-                      {unit.code || `UNIT-${unit.id.substring(0,6).toUpperCase()}`}
+                      {unit.code || 'DEPT-UNIT'}
                     </div>
                   </td>
                   <td>
@@ -165,7 +165,7 @@ export const Units = () => {
                   </td>
                   <td>
                     <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                      {unit.parent?.name || unit.parentId || 'Root Organization'}
+                      {unit.parent?.name || 'Primary Headquarters'}
                     </div>
                   </td>
                   <td>
