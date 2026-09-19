@@ -1,0 +1,297 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model CaseCounter {
+  year       Int @id
+  lastNumber Int @default(0)
+}
+
+model OrganizationUnit {
+  id          String  @id @default(uuid())
+  name        String
+  code        String  @unique
+  description String?
+  isActive    Boolean @default(true)
+
+  parentUnitId String?
+  parent       OrganizationUnit?  @relation("UnitHierarchy", fields: [parentUnitId], references: [id])
+  children     OrganizationUnit[] @relation("UnitHierarchy")
+
+  memberships     UserMembership[]
+  caseUnits       CaseUnit[]
+  roleAssignments UserRole[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([parentUnitId])
+}
+
+model User {
+  id       String @id @default(uuid())
+  name     String
+  email    String @unique
+  password String
+
+  isActive Boolean @default(true)
+
+  memberships            UserMembership[]
+  roles                  UserRole[]
+  assignments            CaseAssignment[]
+  createdCases           Case[]           @relation("CasesCreated")
+  caseAccessGrants       CaseAccess[]
+  accessRequestsMade     AccessRequest[]  @relation("AccessRequestsMade")
+  accessRequestsReviewed AccessRequest[]  @relation("AccessRequestsReviewed")
+  uploadedFiles          CaseFile[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Case {
+  id          String  @id @default(uuid())
+  caseId      String  @unique
+  title       String
+  description String?
+
+  caseType String
+  status   String
+  priority String
+
+  createdById String
+  createdBy   User   @relation("CasesCreated", fields: [createdById], references: [id])
+
+  units          CaseUnit[]
+  assignments    CaseAssignment[]
+  accessGrants   CaseAccess[]
+  accessRequests AccessRequest[]
+  files          CaseFile[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Role {
+  id          String  @id @default(uuid())
+  name        String  @unique
+  description String?
+  isActive    Boolean @default(true)
+
+  users       UserRole[]
+  permissions RolePermission[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Permission {
+  id          String  @id @default(uuid())
+  name        String  @unique
+  resource    String
+  action      String
+  description String?
+
+  isActive Boolean @default(true)
+
+  roles RolePermission[]
+
+  createdAt DateTime @default(now())
+}
+
+model UserMembership {
+  id String @id @default(uuid())
+
+  userId String
+  unitId String
+
+  user User             @relation(fields: [userId], references: [id], onDelete: Restrict)
+  unit OrganizationUnit @relation(fields: [unitId], references: [id], onDelete: Restrict)
+
+  startDate DateTime  @default(now())
+  endDate   DateTime?
+  isActive  Boolean   @default(true)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([unitId])
+  @@index([unitId, isActive])
+}
+
+model CaseUnit {
+  id String @id @default(uuid())
+
+  caseId String
+  unitId String
+
+  case Case             @relation(fields: [caseId], references: [id], onDelete: Restrict)
+  unit OrganizationUnit @relation(fields: [unitId], references: [id], onDelete: Restrict)
+
+  assignedAt   DateTime @default(now())
+  assignedById String?
+  status       String   @default("ACTIVE")
+
+  @@unique([caseId, unitId])
+  @@index([unitId])
+}
+
+model UserRole {
+  id String @id @default(uuid())
+
+  userId String
+  roleId String
+  unitId String?
+
+  scope String @default("OWN_UNIT")
+
+  user User              @relation(fields: [userId], references: [id], onDelete: Restrict)
+  role Role              @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  unit OrganizationUnit? @relation(fields: [unitId], references: [id], onDelete: Restrict)
+
+  assignedAt   DateTime @default(now())
+  assignedById String?
+  isActive     Boolean  @default(true)
+
+  @@unique([userId, roleId, unitId])
+  @@index([roleId])
+  @@index([unitId])
+}
+
+model RolePermission {
+  id String @id @default(uuid())
+
+  roleId       String
+  permissionId String
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([roleId, permissionId])
+  @@index([permissionId])
+}
+
+model CaseAssignment {
+  id String @id @default(uuid())
+
+  caseId String
+  userId String
+
+  case Case @relation(fields: [caseId], references: [id], onDelete: Restrict)
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  assignedAt   DateTime @default(now())
+  assignedById String?
+  status       String   @default("ACTIVE")
+
+  @@unique([caseId, userId])
+  @@index([userId])
+}
+
+model CaseAccess {
+  id String @id @default(uuid())
+
+  caseId String
+  userId String
+
+  case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  grantedById String
+  grantedAt   DateTime  @default(now())
+  expiresAt   DateTime?
+  isActive    Boolean   @default(true)
+
+  @@unique([caseId, userId])
+  @@index([userId])
+  @@index([caseId])
+}
+
+model AccessRequest {
+  id String @id @default(uuid())
+
+  caseId      String
+  requesterId String
+  reviewerId  String?
+
+  reason String
+  status String @default("PENDING")
+
+  requestedAt DateTime  @default(now())
+  reviewedAt  DateTime?
+
+  case      Case  @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  requester User  @relation("AccessRequestsMade", fields: [requesterId], references: [id], onDelete: Restrict)
+  reviewer  User? @relation("AccessRequestsReviewed", fields: [reviewerId], references: [id], onDelete: Restrict)
+
+  @@index([caseId])
+  @@index([requesterId])
+  @@index([status])
+}
+
+model AuditLog {
+  id String @id @default(uuid())
+
+  userId     String?
+  action     String
+  resource   String
+  resourceId String?
+
+  result    String
+  ipAddress String?
+  userAgent String?
+
+  metadata Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([resource, resourceId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+model CaseFile {
+  id String @id @default(uuid())
+
+  caseId       String
+  uploadedById String
+
+  originalName String
+  displayName  String?
+
+  storageKey String @unique
+  mimeType   String
+  size       BigInt
+  sha256     String
+
+  blockchainStatus     String  @default("PENDING")
+  blockchainTxHash     String?
+  blockchainNetwork    String?
+  blockchainFileId     String?
+  blockchainCommitment String?
+
+  category    String?
+  description String?
+  tags        String[]
+
+  ocrLanguage String?
+  languages   String[]
+  ocrText     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  case       Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  uploadedBy User @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
+
+  @@index([caseId])
+  @@index([uploadedById])
+  @@index([sha256])
+}

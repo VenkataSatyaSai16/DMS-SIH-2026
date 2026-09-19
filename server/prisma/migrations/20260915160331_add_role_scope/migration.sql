@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "UserRole" ADD COLUMN     "scope" TEXT NOT NULL DEFAULT 'OWN_UNIT';
