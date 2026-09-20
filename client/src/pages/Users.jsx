@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import api from '../services/api';
 import { usePermissions } from '../hooks/usePermissions';
+import { useToast } from '../hooks/useToast';
 import { Users as UsersIcon, Plus, AlertCircle, Shield, X, Check, Ban, Eye, EyeOff } from 'lucide-react';
 
 export const Users = () => {
@@ -31,6 +32,7 @@ export const Users = () => {
   });
 
   const { hasPermission } = usePermissions();
+  const { showSuccess, showError } = useToast();
 
   const fetchData = async () => {
     setLoading(true);
@@ -91,6 +93,7 @@ export const Users = () => {
       await api.post('/roles', roleForm);
       setActiveModal(null);
       setRoleForm({ name: '', description: '' });
+      showSuccess('Security role created successfully.');
       fetchData();
     } catch (err) {
       setModalError(err.response?.data?.message || err.response?.data?.error || 'Failed to create role.');
@@ -103,9 +106,10 @@ export const Users = () => {
     if (!window.confirm('Are you sure you want to deactivate this officer account?')) return;
     try {
       await api.patch(`/users/${userId}/deactivate`);
+      showSuccess('Officer account deactivated successfully.');
       fetchData();
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to deactivate user.');
+      showError(err.response?.data?.message || 'Failed to deactivate user.');
     }
   };
 

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
 import { usePermissions } from '../hooks/usePermissions';
+import { useToast } from '../hooks/useToast';
 import { Building2, Plus, AlertCircle, X, Check, Ban, Eye } from 'lucide-react';
 
 export const Units = () => {
@@ -21,6 +22,7 @@ export const Units = () => {
   });
 
   const { hasPermission } = usePermissions();
+  const { showSuccess, showError } = useToast();
 
   const fetchUnits = async () => {
     setLoading(true);
@@ -61,6 +63,7 @@ export const Units = () => {
       await api.post('/organization-units', payload);
       setShowCreateModal(false);
       setFormData({ name: '', code: '', description: '', parentId: '' });
+      showSuccess('Organization unit created successfully.');
       fetchUnits();
     } catch (err) {
       setModalError(err.response?.data?.message || err.response?.data?.error || 'Failed to create organization unit.');
@@ -73,9 +76,21 @@ export const Units = () => {
     if (!window.confirm('Are you sure you want to deactivate this organization unit?')) return;
     try {
       await api.patch(`/organization-units/${unitId}/deactivate`);
+      showSuccess('Organization unit deactivated successfully.');
       fetchUnits();
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to deactivate unit.');
+      showError(err.response?.data?.message || 'Failed to deactivate unit.');
+    }
+  };
+
+  const handleActivateUnit = async (unitId) => {
+    if (!window.confirm('Are you sure you want to activate this organization unit?')) return;
+    try {
+      await api.patch(`/organization-units/${unitId}/activate`);
+      showSuccess('Organization unit activated successfully.');
+      fetchUnits();
+    } catch (err) {
+      showError(err.response?.data?.message || 'Failed to activate unit.');
     }
   };
 
@@ -191,6 +206,17 @@ export const Units = () => {
                           title="Deactivate Unit"
                         >
                           <Ban size={14} /> Deactivate
+                        </button>
+                      )}
+
+                      {hasPermission('UNIT_ACTIVATE') && unit.isActive === false && (
+                        <button 
+                          onClick={() => handleActivateUnit(unit.id)}
+                          className="btn btn-secondary" 
+                          style={{ padding: '4px 8px', fontSize: '0.75rem', color: '#16a34a', borderColor: '#86efac' }}
+                          title="Activate Unit"
+                        >
+                          <Check size={14} /> Activate
                         </button>
                       )}
                     </div>

@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import { usePermissions } from '../../hooks/usePermissions';
 import { 
   LayoutDashboard, 
   Files, 
@@ -12,16 +13,17 @@ import {
 
 export const Sidebar = ({ isOpen, onClose }) => {
   const { user } = useAuth();
+  const { hasPermission } = usePermissions();
   const location = useLocation();
 
   const navItems = [
     { path: '/', label: 'Dashboard Overview', icon: LayoutDashboard },
-    { path: '/cases', label: 'Cases & Evidence', icon: Files },
-    { path: '/units', label: 'Organization Units', icon: Building },
-    { path: '/users', label: 'Users & Roles', icon: Users },
-    { path: '/audit', label: 'Audit Logs', icon: ShieldAlert },
+    { path: '/cases', label: 'Cases & Evidence', icon: Files, permission: 'CASE_VIEW' },
+    { path: '/units', label: 'Organization Units', icon: Building, permission: 'UNIT_VIEW' },
+    { path: '/users', label: 'Users & Roles', icon: Users, permission: 'USER_VIEW' },
+    { path: '/audit', label: 'Audit Logs', icon: ShieldAlert, permission: 'AUDIT_VIEW' },
     { path: '/profile', label: 'My Officer Profile', icon: User },
-  ];
+  ].filter(item => !item.permission || hasPermission(item.permission));
 
   return (
     <aside className={`app-sidebar ${isOpen ? 'open' : 'closed'}`}>
