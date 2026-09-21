@@ -19,13 +19,13 @@ export const uploadFileToStorage = async (file) => {
   const objectKey = `test/${Date.now()}-${file.originalname}`;
 
   const command = new PutObjectCommand({
-    Bucket: bucketName,
-    Key: objectKey,
-    Body: file.buffer,
-    ContentType: file.mimetype,
-  });
+  Bucket: process.env.R2_BUCKET_NAME,
+  Key: objectKey,
+  Body: file.buffer,
+  ContentType: file.mimetype,
+});
 
-  await s3Client.send(command);
+await s3.send(command);
 
   return {
     objectKey,
