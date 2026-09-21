@@ -5,8 +5,6 @@ import { calculateSHA256 } from "./file-hash.service.js";
 
 import s3Client from "../config/s3.js";
 
-import path from "node:path";
-
 const bucketName = process.env.S3_BUCKET_NAME;
 
 export const uploadFileToStorage = async (file) => {
@@ -15,7 +13,7 @@ export const uploadFileToStorage = async (file) => {
   }
 
   const sha256 = calculateSHA256(file.buffer);
-  const ext = path.extname(file.originalname || "") || "";
+
   const objectKey = `test/${Date.now()}-${file.originalname}`;
 
   const command = new PutObjectCommand({
@@ -54,8 +52,7 @@ export const uploadCaseFileToStorage = async ({
     throw new Error("File is required");
   }
 
-  const ext = path.extname(file.originalname || "") || "";
-  const objectKey = `cases/${caseId}/files/${fileId}${ext}`;
+  const objectKey = `cases/${caseId}/files/${fileId}`;
 
   const command = new PutObjectCommand({
     Bucket: bucketName,

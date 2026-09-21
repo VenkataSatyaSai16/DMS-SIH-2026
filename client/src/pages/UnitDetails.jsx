@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../services/api';
 import { usePermissions } from '../hooks/usePermissions';
-import { useToast } from '../hooks/useToast';
 import { 
   ArrowLeft, 
   Building2, 
@@ -13,8 +12,7 @@ import {
   X, 
   Check, 
   Eye, 
-  AlertCircle,
-  Ban
+  AlertCircle 
 } from 'lucide-react';
 
 export const UnitDetails = () => {
@@ -36,7 +34,6 @@ export const UnitDetails = () => {
   const [selectedCaseId, setSelectedCaseId] = useState('');
 
   const { hasPermission } = usePermissions();
-  const { showSuccess, showError } = useToast();
 
   const fetchUnitDetails = async () => {
     setLoading(true);
@@ -122,28 +119,6 @@ export const UnitDetails = () => {
     }
   };
 
-  const handleDeactivateUnit = async () => {
-    if (!window.confirm('Are you sure you want to deactivate this organization unit?')) return;
-    try {
-      await api.patch(`/organization-units/${id}/deactivate`);
-      showSuccess('Organization unit deactivated successfully.');
-      fetchUnitDetails();
-    } catch (err) {
-      showError(err.response?.data?.message || 'Failed to deactivate unit.');
-    }
-  };
-
-  const handleActivateUnit = async () => {
-    if (!window.confirm('Are you sure you want to activate this organization unit?')) return;
-    try {
-      await api.patch(`/organization-units/${id}/activate`);
-      showSuccess('Organization unit activated successfully.');
-      fetchUnitDetails();
-    } catch (err) {
-      showError(err.response?.data?.message || 'Failed to activate unit.');
-    }
-  };
-
   if (loading) {
     return <div className="gov-card" style={{ padding: '60px', textAlign: 'center', color: 'var(--text-secondary)' }}>Loading unit details...</div>;
   }
@@ -193,31 +168,9 @@ export const UnitDetails = () => {
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span className={`badge ${unit.isActive !== false ? 'badge-success' : 'badge-danger'}`}>
-            {unit.isActive !== false ? 'ACTIVE' : 'INACTIVE'}
-          </span>
-
-          {hasPermission('UNIT_DEACTIVATE') && unit.isActive !== false && (
-            <button 
-              onClick={handleDeactivateUnit}
-              className="btn btn-secondary" 
-              style={{ padding: '6px 12px', fontSize: '0.8rem', color: 'var(--danger-text)', borderColor: 'var(--danger-border)' }}
-            >
-              <Ban size={14} /> Deactivate Unit
-            </button>
-          )}
-
-          {hasPermission('UNIT_ACTIVATE') && unit.isActive === false && (
-            <button 
-              onClick={handleActivateUnit}
-              className="btn btn-secondary" 
-              style={{ padding: '6px 12px', fontSize: '0.8rem', color: '#16a34a', borderColor: '#86efac' }}
-            >
-              <Check size={14} /> Activate Unit
-            </button>
-          )}
-        </div>
+        <span className={`badge ${unit.isActive !== false ? 'badge-success' : 'badge-danger'}`}>
+          {unit.isActive !== false ? 'ACTIVE' : 'INACTIVE'}
+        </span>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>

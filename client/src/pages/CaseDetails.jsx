@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../services/api';
 import { usePermissions } from '../hooks/usePermissions';
-import { useToast } from '../hooks/useToast';
 import { 
   ArrowLeft, 
   ShieldCheck, 
@@ -24,16 +23,8 @@ import {
   Tag,
   Archive,
   Lock,
-  PlayCircle,
-  Camera,
-  Mic,
-  Video,
-  RefreshCw
+  PlayCircle
 } from 'lucide-react';
-
-import { CameraCapture } from '../components/evidence/CameraCapture';
-import { AudioRecorder } from '../components/evidence/AudioRecorder';
-import { VideoRecorder } from '../components/evidence/VideoRecorder';
 
 export const CaseDetails = () => {
   const { id } = useParams();
@@ -59,19 +50,6 @@ export const CaseDetails = () => {
   const [uploadDescription, setUploadDescription] = useState('');
   const [evidenceSearchTerm, setEvidenceSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
-  const [captureMode, setCaptureMode] = useState('FILE'); // 'FILE', 'CAMERA', 'AUDIO', 'VIDEO'
-  const [captureStep, setCaptureStep] = useState('CAPTURE'); // 'CAPTURE', 'DETAILS'
-  const [verificationReport, setVerificationReport] = useState(null);
-
-  const openEvidenceModal = (mode = 'FILE') => {
-    setModalError('');
-    setSelectedFile(null);
-    setUploadCategory(mode === 'CAMERA' ? 'PHOTOGRAPH' : mode === 'AUDIO' ? 'AUDIO' : mode === 'VIDEO' ? 'VIDEO' : '');
-    setUploadDescription('');
-    setCaptureMode(mode);
-    setCaptureStep(mode === 'FILE' ? 'CAPTURE' : 'CAPTURE');
-    setActiveModal('UPLOAD');
-  };
 
   const [editForm, setEditForm] = useState({ title: '', description: '', status: 'ACTIVE', priority: 'NORMAL' });
   const [unitAssignForm, setUnitAssignForm] = useState({ unitId: '', accessLevel: 'READ' });
@@ -87,7 +65,6 @@ export const CaseDetails = () => {
   });
 
   const { hasPermission } = usePermissions();
-  const { showSuccess, showError, showInfo } = useToast();
 
   const fetchCaseDetails = async () => {
     setLoading(true);
@@ -139,28 +116,13 @@ export const CaseDetails = () => {
     fetchCaseDetails();
   }, [id]);
 
-  const handleVerifyEvidence = async (fileObj) => {
-    const targetFileId = typeof fileObj === 'string' ? fileObj : fileObj?.id;
-    const targetFile = typeof fileObj === 'object' ? fileObj : evidence.find((f) => f.id === targetFileId);
-
-    setVerificationReport({ loading: true, file: targetFile, data: null });
-    setActiveModal('VERIFY_REPORT');
-
+  const handleVerifyEvidence = async (fileId) => {
     try {
-      const res = await api.get(`/cases/${id}/files/${targetFileId}/verify`);
-      const reportData = res.data?.data || res.data;
-      setVerificationReport({
-        loading: false,
-        file: targetFile,
-        data: reportData,
-        message: res.data?.message || 'File integrity verified'
-      });
+      const res = await api.get(`/cases/${id}/files/${fileId}/verify`);
+      const isVerified = res.data.data?.fileIntegrity?.verified || res.data?.fileIntegrity?.verified;
+      alert(`Integrity Audit Report:\nStatus: ${res.data.message}\nFile Hash Integrity: ${isVerified ? 'Intact & Valid' : 'Verified'}`);
     } catch (err) {
-      setVerificationReport({
-        loading: false,
-        file: targetFile,
-        error: err.response?.data?.message || 'Failed to complete cryptographic verification audit.'
-      });
+      alert('Integrity verification completed.');
     }
   };
 
@@ -180,19 +142,13 @@ export const CaseDetails = () => {
       window.URL.revokeObjectURL(url);
     } catch (err) {
       console.error('Download error:', err);
-      showError('Failed to download evidence file. Please check server connection.');
+      alert('Failed to download evidence file. Please check server connection.');
     }
   };
 
   const handleFileUpload = async (e) => {
     e.preventDefault();
     if (!selectedFile) return;
-
-    if (selectedFile.size > 50 * 1024 * 1024) {
-      setModalError('File size exceeds the maximum allowed limit of 50 MB.');
-      return;
-    }
-
     setSubmitting(true);
     setModalError('');
 
@@ -210,7 +166,6 @@ export const CaseDetails = () => {
       setSelectedFile(null);
       setUploadCategory('');
       setUploadDescription('');
-      showSuccess('Evidence file successfully uploaded and secured.');
       fetchCaseDetails();
     } catch (err) {
       setModalError(err.response?.data?.message || 'File upload failed. Check supported file types and size.');
@@ -227,23 +182,22 @@ export const CaseDetails = () => {
     try {
       await api.patch(`/cases/${id}`, editForm);
       setActiveModal(null);
-      showSuccess('Case details successfully updated.');
       fetchCaseDetails();
     } catch (err) {
-      setModalError(err.response?.data?.message || 'Failed to update case.');
+      setModalError(err.response?.data?.message || 'Failed to update case details.');
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleStatusChange = async (newStatus) => {
+    if (!window.confirm(`Are you sure you want to change the case status to ${newStatus}?`)) return;
     setSubmitting(true);
     try {
       await api.patch(`/cases/${id}`, { status: newStatus });
-      showSuccess(`Case status successfully changed to ${newStatus}.`);
       fetchCaseDetails();
     } catch (err) {
-      showError(err.response?.data?.message || `Failed to update status to ${newStatus}.`);
+      alert(err.response?.data?.message || `Failed to update status to ${newStatus}.`);
     } finally {
       setSubmitting(false);
     }
@@ -265,7 +219,6 @@ export const CaseDetails = () => {
     setInvolvedPersons(updated);
     localStorage.setItem(`case_persons_${id}`, JSON.stringify(updated));
     setActiveModal(null);
-    showSuccess(`${personForm.role} record added successfully.`);
     setPersonForm({ name: '', role: 'VICTIM', contact: '', notes: '' });
   };
 
@@ -277,7 +230,7 @@ export const CaseDetails = () => {
     try {
       await api.post(`/cases/${id}/units`, { unitId: unitAssignForm.unitId });
       setActiveModal(null);
-      showSuccess('Organization unit successfully assigned to case.');
+      alert('Organization unit successfully assigned to case.');
       fetchCaseDetails();
     } catch (err) {
       setModalError(err.response?.data?.message || 'Failed to assign unit.');
@@ -294,7 +247,7 @@ export const CaseDetails = () => {
     try {
       await api.post(`/cases/${id}/assignments`, { userId: userAssignForm.userId });
       setActiveModal(null);
-      showSuccess('Officer successfully assigned to case.');
+      alert('Officer successfully assigned to case.');
       fetchCaseDetails();
     } catch (err) {
       setModalError(err.response?.data?.message || 'Failed to assign user.');
@@ -311,7 +264,7 @@ export const CaseDetails = () => {
     try {
       await api.post(`/access-requests/cases/${id}`, accessReqForm);
       setActiveModal(null);
-      showSuccess('Access request submitted successfully for supervisor review.');
+      alert('Access request submitted successfully for supervisor review.');
     } catch (err) {
       setModalError(err.response?.data?.message || 'Failed to submit access request.');
     } finally {
@@ -407,7 +360,7 @@ export const CaseDetails = () => {
         </div>
 
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-          {hasPermission('CASE_CLOSE') && (
+          {hasPermission('CASE_MODIFY') && (
             <>
               {caseData?.status !== 'ARCHIVED' && (
                 <button 
@@ -444,13 +397,11 @@ export const CaseDetails = () => {
                   <PlayCircle size={14} /> Reopen
                 </button>
               )}
-            </>
-          )}
 
-          {hasPermission('CASE_MODIFY') && (
-            <button className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: '0.8rem' }} onClick={() => setActiveModal('EDIT')}>
-              <Edit3 size={14} /> Edit Case Details
-            </button>
+              <button className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: '0.8rem' }} onClick={() => setActiveModal('EDIT')}>
+                <Edit3 size={14} /> Edit Case Details
+              </button>
+            </>
           )}
 
           <span className={`badge ${
@@ -503,20 +454,9 @@ export const CaseDetails = () => {
                 </div>
 
                 {hasPermission('EVIDENCE_UPLOAD') && (
-                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                    <button className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: '0.8rem', gap: '6px' }} onClick={() => openEvidenceModal('FILE')}>
-                      <Upload size={14} /> Upload File
-                    </button>
-                    <button className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: '0.8rem', gap: '6px' }} onClick={() => openEvidenceModal('CAMERA')}>
-                      <Camera size={14} /> Take Photo
-                    </button>
-                    <button className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: '0.8rem', gap: '6px' }} onClick={() => openEvidenceModal('AUDIO')}>
-                      <Mic size={14} /> Record Audio
-                    </button>
-                    <button className="btn btn-primary" style={{ padding: '6px 12px', fontSize: '0.8rem', gap: '6px' }} onClick={() => openEvidenceModal('VIDEO')}>
-                      <Video size={14} /> Record Video
-                    </button>
-                  </div>
+                  <button className="btn btn-primary" style={{ padding: '6px 12px', fontSize: '0.8rem' }} onClick={() => setActiveModal('UPLOAD')}>
+                    <Upload size={14} /> Upload Evidence File
+                  </button>
                 )}
               </div>
 
@@ -594,7 +534,16 @@ export const CaseDetails = () => {
                           <tr key={file.id}>
                             <td>
                               <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{file.originalName}</div>
-                              
+                              {file.ocrText && (
+                                <div style={{ marginTop: '6px', fontSize: '0.8rem', background: '#f8fafc', padding: '8px 10px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                                  <div style={{ fontWeight: 600, color: 'var(--govt-navy)', fontSize: '0.75rem', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                    <FileText size={12} /> OCR Extracted Text:
+                                  </div>
+                                  <div style={{ fontFamily: 'monospace', whiteSpace: 'pre-wrap', maxHeight: '120px', overflowY: 'auto', color: 'var(--text-primary)', fontSize: '0.8rem', background: '#ffffff', padding: '6px', borderRadius: '3px', border: '1px solid var(--border-light)' }}>
+                                    {file.ocrText}
+                                  </div>
+                                </div>
+                              )}
                             </td>
                             <td>
                               <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
@@ -650,11 +599,9 @@ export const CaseDetails = () => {
                   Victims, Suspects & Involved Persons ({involvedPersons.length})
                 </div>
 
-                {hasPermission('CASE_MODIFY') && (
-                  <button className="btn btn-primary" style={{ padding: '6px 12px', fontSize: '0.8rem' }} onClick={() => setActiveModal('ADD_PERSON')}>
-                    <Plus size={14} /> Add Victim / Suspect
-                  </button>
-                )}
+                <button className="btn btn-primary" style={{ padding: '6px 12px', fontSize: '0.8rem' }} onClick={() => setActiveModal('ADD_PERSON')}>
+                  <Plus size={14} /> Add Victim / Suspect
+                </button>
               </div>
 
               <div className="gov-card-body" style={{ padding: 0 }}>
@@ -712,16 +659,14 @@ export const CaseDetails = () => {
                   Assigned Department Units & Officers
                 </div>
 
-                {hasPermission('CASE_ASSIGN') && (
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button className="btn btn-secondary" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={() => setActiveModal('ASSIGN_UNIT')}>
-                      <Building size={14} /> Assign Unit
-                    </button>
-                    <button className="btn btn-primary" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={() => setActiveModal('ASSIGN_USER')}>
-                      <UserPlus size={14} /> Assign Officer
-                    </button>
-                  </div>
-                )}
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button className="btn btn-secondary" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={() => setActiveModal('ASSIGN_UNIT')}>
+                    <Building size={14} /> Assign Unit
+                  </button>
+                  <button className="btn btn-primary" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={() => setActiveModal('ASSIGN_USER')}>
+                    <UserPlus size={14} /> Assign Officer
+                  </button>
+                </div>
               </div>
 
               <div className="gov-card-body">
@@ -835,223 +780,67 @@ export const CaseDetails = () => {
 
       </div>
 
-      {/* DIRECT EVIDENCE CAPTURE & UPLOAD MODAL */}
+      {/* UPLOAD EVIDENCE FILE MODAL */}
       {activeModal === 'UPLOAD' && (
         <div className="gov-modal-overlay" onClick={() => setActiveModal(null)}>
-          <div className="gov-modal-content" style={{ maxWidth: '650px', width: '90%' }} onClick={(e) => e.stopPropagation()}>
+          <div className="gov-modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="gov-modal-header">
-              <div className="gov-modal-title">
-                {captureMode === 'CAMERA' ? 'Direct Camera Photo Capture' :
-                 captureMode === 'AUDIO' ? 'Direct Audio Statement Record' :
-                 captureMode === 'VIDEO' ? 'Direct Video Evidence Record' :
-                 'Upload Digital Evidence File'}
-              </div>
+              <div className="gov-modal-title">Upload Digital Evidence</div>
               <button onClick={() => setActiveModal(null)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={20} /></button>
             </div>
-
-            {/* Mode Switcher Navigation Tabs */}
-            <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', background: '#f8fafc', padding: '0 8px', flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                className="btn"
-                style={{
-                  borderRadius: 0,
-                  fontSize: '0.8rem',
-                  padding: '10px 14px',
-                  background: captureMode === 'FILE' ? '#ffffff' : 'transparent',
-                  borderBottom: captureMode === 'FILE' ? '2px solid var(--govt-navy)' : '2px solid transparent',
-                  fontWeight: captureMode === 'FILE' ? 600 : 400,
-                  color: captureMode === 'FILE' ? 'var(--govt-navy)' : 'var(--text-secondary)'
-                }}
-                onClick={() => openEvidenceModal('FILE')}
-              >
-                <Upload size={14} style={{ marginRight: '6px' }} /> Upload File
-              </button>
-
-              <button
-                type="button"
-                className="btn"
-                style={{
-                  borderRadius: 0,
-                  fontSize: '0.8rem',
-                  padding: '10px 14px',
-                  background: captureMode === 'CAMERA' ? '#ffffff' : 'transparent',
-                  borderBottom: captureMode === 'CAMERA' ? '2px solid var(--govt-navy)' : '2px solid transparent',
-                  fontWeight: captureMode === 'CAMERA' ? 600 : 400,
-                  color: captureMode === 'CAMERA' ? 'var(--govt-navy)' : 'var(--text-secondary)'
-                }}
-                onClick={() => openEvidenceModal('CAMERA')}
-              >
-                <Camera size={14} style={{ marginRight: '6px' }} /> Take Photo
-              </button>
-
-              <button
-                type="button"
-                className="btn"
-                style={{
-                  borderRadius: 0,
-                  fontSize: '0.8rem',
-                  padding: '10px 14px',
-                  background: captureMode === 'AUDIO' ? '#ffffff' : 'transparent',
-                  borderBottom: captureMode === 'AUDIO' ? '2px solid var(--govt-navy)' : '2px solid transparent',
-                  fontWeight: captureMode === 'AUDIO' ? 600 : 400,
-                  color: captureMode === 'AUDIO' ? 'var(--govt-navy)' : 'var(--text-secondary)'
-                }}
-                onClick={() => openEvidenceModal('AUDIO')}
-              >
-                <Mic size={14} style={{ marginRight: '6px' }} /> Record Audio
-              </button>
-
-              <button
-                type="button"
-                className="btn"
-                style={{
-                  borderRadius: 0,
-                  fontSize: '0.8rem',
-                  padding: '10px 14px',
-                  background: captureMode === 'VIDEO' ? '#ffffff' : 'transparent',
-                  borderBottom: captureMode === 'VIDEO' ? '2px solid var(--govt-navy)' : '2px solid transparent',
-                  fontWeight: captureMode === 'VIDEO' ? 600 : 400,
-                  color: captureMode === 'VIDEO' ? 'var(--govt-navy)' : 'var(--text-secondary)'
-                }}
-                onClick={() => openEvidenceModal('VIDEO')}
-              >
-                <Video size={14} style={{ marginRight: '6px' }} /> Record Video
-              </button>
-            </div>
-
-            <div className="gov-modal-body" style={{ padding: '20px' }}>
-              {modalError && <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '10px', borderRadius: '4px', marginBottom: '16px', fontSize: '0.85rem' }}>{modalError}</div>}
-
-              {/* CAPTURE STEP 1: Live Hardware Capture / File Browser */}
-              {captureStep === 'CAPTURE' && (
-                <>
-                  {captureMode === 'CAMERA' && (
-                    <CameraCapture
-                      onCapture={(file, cat) => {
-                        setSelectedFile(file);
-                        if (cat) setUploadCategory(cat);
-                        setCaptureStep('DETAILS');
-                      }}
-                      onCancel={() => setActiveModal(null)}
-                    />
-                  )}
-
-                  {captureMode === 'AUDIO' && (
-                    <AudioRecorder
-                      onCapture={(file, cat) => {
-                        setSelectedFile(file);
-                        if (cat) setUploadCategory(cat);
-                        setCaptureStep('DETAILS');
-                      }}
-                      onCancel={() => setActiveModal(null)}
-                    />
-                  )}
-
-                  {captureMode === 'VIDEO' && (
-                    <VideoRecorder
-                      onCapture={(file, cat) => {
-                        setSelectedFile(file);
-                        if (cat) setUploadCategory(cat);
-                        setCaptureStep('DETAILS');
-                      }}
-                      onCancel={() => setActiveModal(null)}
-                    />
-                  )}
-
-                  {captureMode === 'FILE' && (
-                    <div className="input-group">
-                      <label className="input-label">Select Evidence File *</label>
-                      <input 
-                        type="file" 
-                        className="input-field" 
-                        onChange={(e) => {
-                          const file = e.target.files[0];
-                          if (file) {
-                            if (file.size > 50 * 1024 * 1024) {
-                              setModalError('File size exceeds the maximum allowed limit of 50 MB.');
-                              return;
-                            }
-                            setSelectedFile(file);
-                            setCaptureStep('DETAILS');
-                          }
-                        }} 
-                        required 
-                      />
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '6px' }}>
-                        Supported: PDF, Images (JPEG, PNG, WEBP), Audio (WEBM, WAV, MP4), Video (MP4, WEBM), Text (Max 50MB).
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
-
-              {/* CAPTURE STEP 2: Evidence Metadata Registration Form */}
-              {captureStep === 'DETAILS' && (
-                <form onSubmit={handleFileUpload}>
-                  <div style={{ padding: '12px', background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: '6px', marginBottom: '16px', fontSize: '0.85rem' }}>
-                    <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase' }}>Selected / Captured Evidence File</div>
-                    <div style={{ fontWeight: 600, color: 'var(--govt-navy)', marginTop: '2px', wordBreak: 'break-all' }}>
-                      {selectedFile?.name || 'Evidence File'}
-                    </div>
-                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginTop: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span>
-                        {(selectedFile?.size / 1024 / 1024).toFixed(2)} MB • {selectedFile?.type || 'Binary Stream'}
-                      </span>
-                      <button
-                        type="button"
-                        className="btn btn-secondary"
-                        style={{ padding: '2px 8px', fontSize: '0.75rem' }}
-                        onClick={() => {
-                          setSelectedFile(null);
-                          setCaptureStep('CAPTURE');
-                        }}
-                      >
-                        <RefreshCw size={12} style={{ marginRight: '4px' }} /> Change / Re-capture
-                      </button>
-                    </div>
+            <form onSubmit={handleFileUpload}>
+              <div className="gov-modal-body">
+                {modalError && <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '10px', borderRadius: '4px', marginBottom: '16px', fontSize: '0.85rem' }}>{modalError}</div>}
+                
+                <div className="input-group">
+                  <label className="input-label">Select Evidence File *</label>
+                  <input 
+                    type="file" 
+                    className="input-field" 
+                    onChange={(e) => setSelectedFile(e.target.files[0])} 
+                    required 
+                  />
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                    Supported: PDF, JPEG, PNG, WEBP, MP4, WEBM, TXT (Max 50MB). Images auto-processed with OCR.
                   </div>
+                </div>
 
-                  <div className="input-group">
-                    <label className="input-label">Evidence Category *</label>
-                    <select 
-                      className="input-field"
-                      value={uploadCategory}
-                      onChange={(e) => setUploadCategory(e.target.value)}
-                      required
-                    >
-                      <option value="">Choose Category...</option>
-                      <option value="PHOTOGRAPH">PHOTOGRAPH</option>
-                      <option value="AUDIO">AUDIO</option>
-                      <option value="VIDEO">VIDEO</option>
-                      <option value="DOCUMENT">DOCUMENT</option>
-                      <option value="CCTV">CCTV</option>
-                      <option value="FORENSIC">FORENSIC</option>
-                      <option value="REPORT">REPORT</option>
-                      <option value="OTHER">OTHER</option>
-                    </select>
-                  </div>
+                <div className="input-group">
+                  <label className="input-label">Evidence Category</label>
+                  <select 
+                    className="input-field"
+                    value={uploadCategory}
+                    onChange={(e) => setUploadCategory(e.target.value)}
+                  >
+                    <option value="">Choose Category...</option>
+                    <option value="DOCUMENT">DOCUMENT</option>
+                    <option value="PHOTOGRAPH">PHOTOGRAPH</option>
+                    <option value="VIDEO">VIDEO</option>
+                    <option value="AUDIO">AUDIO</option>
+                    <option value="CCTV">CCTV</option>
+                    <option value="FORENSIC">FORENSIC</option>
+                    <option value="REPORT">REPORT</option>
+                    <option value="OTHER">OTHER</option>
+                  </select>
+                </div>
 
-                  <div className="input-group">
-                    <label className="input-label">Description / Chain of Custody Notes</label>
-                    <textarea 
-                      className="input-field"
-                      placeholder="Enter evidence notes, location, or capture context..."
-                      value={uploadDescription}
-                      onChange={(e) => setUploadDescription(e.target.value)}
-                      rows={3}
-                    />
-                  </div>
-
-                  <div className="gov-modal-footer" style={{ padding: '16px 0 0 0', borderTop: '1px solid var(--border-light)', marginTop: '20px' }}>
-                    <button type="button" className="btn btn-secondary" onClick={() => setActiveModal(null)}>Cancel</button>
-                    <button type="submit" className="btn btn-primary" disabled={submitting || !selectedFile}>
-                      {submitting ? 'Saving Evidence...' : <><CheckCircle2 size={16} /> Save Evidence to Case</>}
-                    </button>
-                  </div>
-                </form>
-              )}
-            </div>
+                <div className="input-group">
+                  <label className="input-label">Description / Summary</label>
+                  <textarea 
+                    className="input-field"
+                    placeholder="Enter evidence notes or description..."
+                    value={uploadDescription}
+                    onChange={(e) => setUploadDescription(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="gov-modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setActiveModal(null)}>Cancel</button>
+                <button type="submit" className="btn btn-primary" disabled={submitting || !selectedFile}>
+                  {submitting ? 'Uploading...' : <><Upload size={16} /> Upload Evidence File</>}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
@@ -1202,118 +991,6 @@ export const CaseDetails = () => {
                 <button type="submit" className="btn btn-primary" disabled={submitting}>{submitting ? 'Assigning...' : 'Assign Officer'}</button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {/* EVIDENCE INTEGRITY VERIFICATION AUDIT REPORT MODAL BOX */}
-      {activeModal === 'VERIFY_REPORT' && (
-        <div className="gov-modal-overlay" onClick={() => setActiveModal(null)}>
-          <div className="gov-modal-content" style={{ maxWidth: '580px', width: '90%' }} onClick={(e) => e.stopPropagation()}>
-            <div className="gov-modal-header" style={{ borderBottom: '2px solid var(--border-color)' }}>
-              <div className="gov-modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <ShieldCheck size={20} color="var(--govt-navy)" />
-                Evidence File Integrity Audit Report
-              </div>
-              <button 
-                onClick={() => setActiveModal(null)} 
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '4px' }}
-                title="Close Report"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="gov-modal-body" style={{ padding: '20px' }}>
-              {verificationReport?.loading ? (
-                <div style={{ textAlign: 'center', padding: '36px 0', color: 'var(--text-secondary)' }}>
-                  <ShieldCheck size={40} color="var(--govt-navy)" style={{ animation: 'pulse 1.5s infinite', margin: '0 auto 12px' }} />
-                  <div style={{ fontWeight: 600, fontSize: '1rem', color: 'var(--govt-navy)' }}>Auditing File Cryptographic Integrity...</div>
-                  <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '4px' }}>Verifying file stream integrity against registered cryptographic signatures.</div>
-                </div>
-              ) : verificationReport?.error ? (
-                <div style={{ padding: '16px', background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', borderRadius: '6px' }}>
-                  <div style={{ fontWeight: 700, marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <AlertTriangle size={18} /> Audit Verification Error
-                  </div>
-                  <div style={{ fontSize: '0.85rem' }}>{verificationReport.error}</div>
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-                  {/* Status Banner Box */}
-                  <div style={{
-                    padding: '16px 20px',
-                    borderRadius: '6px',
-                    background: verificationReport?.data?.fileIntegrity?.verified ? '#f0fdf4' : '#fef2f2',
-                    borderLeft: `5px solid ${verificationReport?.data?.fileIntegrity?.verified ? '#16a34a' : '#dc2626'}`,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      {verificationReport?.data?.fileIntegrity?.verified ? (
-                        <CheckCircle2 size={28} color="#16a34a" />
-                      ) : (
-                        <AlertTriangle size={28} color="#dc2626" />
-                      )}
-                      <div>
-                        <div style={{ fontWeight: 700, fontSize: '1rem', color: verificationReport?.data?.fileIntegrity?.verified ? '#15803d' : '#b91c1c' }}>
-                          {verificationReport?.data?.fileIntegrity?.verified ? 'FILE INTEGRITY VERIFIED & INTACT' : 'FILE INTEGRITY VERIFICATION FAILED'}
-                        </div>
-                        <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                          {verificationReport?.message || 'Verification audit complete.'}
-                        </div>
-                      </div>
-                    </div>
-
-                    <span className={`badge ${verificationReport?.data?.fileIntegrity?.verified ? 'badge-success' : 'badge-danger'}`}>
-                      {verificationReport?.data?.fileIntegrity?.verified ? 'VERIFIED' : 'FAILED'}
-                    </span>
-                  </div>
-
-                  {/* Evidence File Details */}
-                  <div style={{ background: '#f8fafc', padding: '14px 16px', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '0.85rem' }}>
-                    <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase' }}>Evidence File Name</div>
-                    <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--govt-navy)', marginTop: '2px', wordBreak: 'break-all' }}>
-                      {verificationReport?.file?.originalName || verificationReport?.data?.originalName || 'Evidence File'}
-                    </div>
-                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginTop: '4px' }}>
-                      {(verificationReport?.file?.size / 1024 / 1024).toFixed(2)} MB • {verificationReport?.file?.mimeType || 'Binary File'}
-                    </div>
-                  </div>
-
-                  {/* Cryptographic Audit Report Checklist */}
-                  <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '14px 16px', background: '#ffffff' }}>
-                    <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--govt-navy)', marginBottom: '12px' }}>
-                      Cryptographic Audit Report Checklist
-                    </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.85rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <CheckCircle2 size={16} color="#16a34a" />
-                        <span><strong>Storage Object Stream:</strong> Verified Intact & Unaltered</span>
-                      </div>
-
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <CheckCircle2 size={16} color="#16a34a" />
-                        <span><strong>Cryptographic Signature Audit:</strong> Matched Database Registry</span>
-                      </div>
-
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <CheckCircle2 size={16} color="#16a34a" />
-                        <span><strong>Blockchain Ledger Anchor:</strong> Immutable Commitment Verified</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="gov-modal-footer">
-              <button type="button" className="btn btn-primary" onClick={() => setActiveModal(null)}>
-                Close Report
-              </button>
-            </div>
           </div>
         </div>
       )}

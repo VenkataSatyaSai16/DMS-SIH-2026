@@ -16,14 +16,17 @@ const upload = multer({
     fileSize: 50 * 1024 * 1024,
   },
   fileFilter: (req, file, cb) => {
-    const isAllowed = 
-      file.mimetype.startsWith("image/") ||
-      file.mimetype.startsWith("audio/") ||
-      file.mimetype.startsWith("video/") ||
-      file.mimetype === "application/pdf" ||
-      file.mimetype === "text/plain";
+    const allowedTypes = [
+      "application/pdf",
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+      "video/mp4",
+      "video/webm",
+      "text/plain",
+    ];
 
-    if (!isAllowed) {
+    if (!allowedTypes.includes(file.mimetype)) {
       return cb(new Error("Unsupported file type"));
     }
 

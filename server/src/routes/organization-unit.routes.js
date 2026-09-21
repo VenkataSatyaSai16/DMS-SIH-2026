@@ -6,7 +6,6 @@ import {
   getOrganizationUnitByIdController,
   updateOrganizationUnitController,
   deactivateOrganizationUnitController,
-  activateOrganizationUnitController,
 } from "../controllers/organization-unit.controller.js";
 
 import { authenticate } from "../middleware/auth.js";
@@ -55,13 +54,6 @@ router.patch(
   authenticate,
   authorize("UNIT_DEACTIVATE"),
   deactivateOrganizationUnitController
-);
-
-router.patch(
-  "/:id/activate",
-  authenticate,
-  authorize("UNIT_ACTIVATE"),
-  activateOrganizationUnitController
 );
 
 export default router;

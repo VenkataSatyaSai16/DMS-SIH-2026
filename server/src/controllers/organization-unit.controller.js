@@ -4,7 +4,6 @@ import {
   getOrganizationUnitById,
   updateOrganizationUnit,
   deactivateOrganizationUnit,
-  activateOrganizationUnit,
 } from "../services/organization-unit.service.js";
 
 export const createOrganizationUnitController = async (req, res, next) => {
@@ -74,24 +73,6 @@ export const deactivateOrganizationUnitController = async (
 
     return res.status(200).json({
       message: "Organization unit deactivated successfully",
-      unit,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-
-export const activateOrganizationUnitController = async (
-  req,
-  res,
-  next
-) => {
-  try {
-    const unit = await activateOrganizationUnit(req.params.id, req.user);
-
-    return res.status(200).json({
-      message: "Organization unit activated successfully",
       unit,
     });
   } catch (error) {

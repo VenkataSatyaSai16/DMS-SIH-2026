@@ -26,7 +26,6 @@ const permissions = [
   ["UNIT_CREATE", "ORGANIZATION_UNIT", "CREATE"],
   ["UNIT_MODIFY", "ORGANIZATION_UNIT", "MODIFY"],
   ["UNIT_DEACTIVATE", "ORGANIZATION_UNIT", "DEACTIVATE"],
-  ["UNIT_ACTIVATE", "ORGANIZATION_UNIT", "ACTIVATE"],
   ["UNIT_VIEW", "ORGANIZATION_UNIT", "VIEW"],
 
   ["USER_CREATE", "USER", "CREATE"],
@@ -76,7 +75,6 @@ const roles = {
     "UNIT_CREATE",
     "UNIT_MODIFY",
     "UNIT_DEACTIVATE",
-    "UNIT_ACTIVATE",
     "UNIT_VIEW",
 
     "USER_CREATE",
@@ -123,10 +121,6 @@ const roles = {
     "CASE_MODIFY",
     "CASE_ASSIGN",
     "CASE_CLOSE",
-
-    "UNIT_DEACTIVATE",
-    "UNIT_ACTIVATE",
-    "UNIT_VIEW",
 
     "DATA_VIEW",
     "DATA_MODIFY",
@@ -218,14 +212,14 @@ async function main() {
   // Seed permissions
   for (const [name, resource, action] of permissions) {
     await prisma.permission.upsert({
-      where: { name: name },
+      where: { name: permission },
       update: {
         isActive: true,
       },
       create: {
-        name: name,
-        resource: resource || "SYSTEM",
-        action: action || name,
+        name: permission,
+        resource: "SYSTEM",
+        action: permission,
         isActive: true,
       },
     });
